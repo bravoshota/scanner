@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <../common.h>
+#include <QTime>
 
 namespace Ui
 {
@@ -27,6 +28,8 @@ private:
     QDBusInterface *scannerIface;
     QStringList allFiles;
     QStringList filesOutput;
+    uint32_t numberInfectedFiles;
+    QTime startTime;
     int replyCounter;
     bool busy;
 

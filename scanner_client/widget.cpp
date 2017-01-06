@@ -99,6 +99,8 @@ void ScannerMain::scanRecursivelly(const QString &root)
 
     if (allFiles.count() > 0)
     {
+        numberInfectedFiles = 0;
+        startTime.start();
         filesOutput[0].append(QString(" %1 files to scan..").arg(allFiles.count()));
         ui->progressBar->setMaximum(allFiles.count());
 
@@ -159,6 +161,7 @@ void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *reply)
                 }
                 else
                 {
+                    numberInfectedFiles ++;
                     lastString.append(".. [INFECTED!]");
                     size_t counter = 0;
                     for (auto &val : scannerResults.results)
@@ -191,12 +194,25 @@ void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *reply)
         }
         else
         {
-            filesOutput.push_back("Scan finished!..");
+            auto totalSeconds = startTime.elapsed()/1000;
+            int64_t totalSizeScanned = 0;
+            for (auto &val : allFiles)
+            {
+                totalSizeScanned += QFile(val).size();
+            }
+            filesOutput.push_back(QString("*** Scan of %1 files finished!..")
+                                  .arg(allFiles.size()));
+            filesOutput.push_back(QString("*** Number of infected files: %1")
+                                  .arg(numberInfectedFiles));
+            filesOutput.push_back(QString("*** Total size scanned: %1 MB")
+                                  .arg(totalSizeScanned/1024/1024));
+            filesOutput.push_back(QString("*** Elapsed time: %1 sec")
+                                  .arg(totalSeconds));
             busy = false;
         }
     }
 
-    delete reply;
+    reply->deleteLater();
 
     resultListModel->setStringList(filesOutput);
     ui->listResults->scrollToBottom();
@@ -274,6 +290,6 @@ void ScannerMain::scanBytesFinished(QDBusPendingCallWatcher *reply)
         }
     }
 
-    delete reply;
+    reply->deleteLater();
     busy = false;
 }
