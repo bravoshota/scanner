@@ -1,19 +1,12 @@
 #include <scanner.h>
 
 ByteSequence::ByteSequence(const Bytes &_bytes, const Guid &_guid)
-    : bytes(_bytes)
-    , guid(_guid)
+    : m_bytes(_bytes)
+    , m_guid(_guid)
     , found(false)
 {
-    data64bit = reinterpret_cast<const uint64_t *>(bytes.data());
-    count64bit = bytes.size()/sizeof(uint64_t);
-    dataRemainingBytes = reinterpret_cast<const char *>(bytes.data()) + count64bit*sizeof(uint64_t);
-    countRemainingBytes = bytes.size()%sizeof(uint64_t);
-}
-
-uint64_t ByteSequence::size() const
-{
-    return count64bit*sizeof(uint64_t) + countRemainingBytes;
+    count64bit = m_bytes.size()/sizeof(uint64_t);
+    countRemainingBytes = m_bytes.size()%sizeof(uint64_t);
 }
 
 bool ByteSequence::find(const void *memoryStart, uint64_t remainingSize) const
@@ -23,16 +16,22 @@ bool ByteSequence::find(const void *memoryStart, uint64_t remainingSize) const
         return false;
     }
 
-    for (auto i = 0u; i < count64bit; i ++)
+    if (count64bit > 0)
     {
-        if (data64bit[i] != reinterpret_cast<const uint64_t *>(memoryStart)[i])
+        const uint64_t *data64bit = reinterpret_cast<const uint64_t *>(m_bytes.data());
+        const uint64_t *memory64bit = reinterpret_cast<const uint64_t *>(memoryStart);
+        for (auto i = 0u; i < count64bit; i ++)
         {
-            return false;
+            if (data64bit[i] != memory64bit[i])
+            {
+                return false;
+            }
         }
     }
 
     if (countRemainingBytes > 0)
     {
+        const char *dataRemainingBytes = m_bytes.data() + count64bit*sizeof(uint64_t);
         const char *remainingOffset =
                 reinterpret_cast<const char *>(memoryStart) + count64bit*sizeof(uint64_t);
         for (auto i = 0u; i < countRemainingBytes; i ++)
@@ -59,13 +58,13 @@ void Scanner::scanMemoryBlock(MemoryBlock memoryBlock, cb_results cb)
             auto remainingSize = memoryBlock.sizeInBytes;
 
             const char *ptrEnd = memoryBlock.firstByte + memoryBlock.sizeInBytes - minimalArraySize;
-            for (char *ptrIterator = const_cast<char *>(memoryBlock.firstByte); ptrIterator < ptrEnd; ptrIterator ++)
+            for (char *ptrIterator = const_cast<char *>(memoryBlock.firstByte); ptrIterator <= ptrEnd; ptrIterator ++)
             {
                 for (auto i = 0u; i < byteSequences.size(); i ++)
                 {
                     if (byteSequences[i].find(ptrIterator, remainingSize))
                     {
-                        results.insert(byteSequences[i].guid);
+                        results.insert(byteSequences[i].guid());
                     }
                 }
 

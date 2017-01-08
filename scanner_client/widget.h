@@ -36,12 +36,12 @@ private:
 private slots:
     // files tab
     void onScanPushed(bool);
-    void scanFileFinished(QDBusPendingCallWatcher *reply);
+    void scanFileFinished(QDBusPendingCallWatcher *watcher);
 
     // bytes tab
     void onImportFromFilePushed(bool);
     void onScanBytes(bool);
-    void scanBytesFinished(QDBusPendingCallWatcher *reply);
+    void scanBytesFinished(QDBusPendingCallWatcher *watcher);
 
 private:
     void asyncScanFile();

@@ -27,6 +27,11 @@ public slots:
         return manager.scanFile(filename.toStdString());
     }
 
+    void setChunkSize(uint64_t sizeInBytes)
+    {
+        return manager.setChunkSize(sizeInBytes);
+    }
+
 private:
     Manager &manager;
 };

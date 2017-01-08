@@ -1,6 +1,5 @@
 #include <manager.h>
 #include <iostream>
-#include <fstream>
 #include <limits>
 #include <sstream>
 #include <cassert>
@@ -28,9 +27,9 @@ std::string generateOutput(const ScannerResults &scannerResults)
 }
 }
 
-Manager::Manager(const std::string &sequencesFile)
+Manager::Manager(std::vector<ByteSequence> &&byteSequences)
+    : m_byteSequences(byteSequences)
 {
-    updateSequencesFromFile(sequencesFile);
     if (m_byteSequences.size() == 0)
     {
         assert(false);
@@ -38,7 +37,8 @@ Manager::Manager(const std::string &sequencesFile)
         return;
     }
 
-    unsigned cores = std::thread::hardware_concurrency();
+    unsigned cores = std::min(std::thread::hardware_concurrency(),
+                              m_byteSequences.size());
     assert(cores > 0);
     std::cout << "number of cores = " << cores << std::endl;
 
@@ -46,7 +46,7 @@ Manager::Manager(const std::string &sequencesFile)
     std::sort(m_byteSequences.begin(), m_byteSequences.end(),
               [](const ByteSequence &a, const ByteSequence &b)->bool
     {
-        return a.bytes.size() > b.bytes.size();
+        return a.size() > b.size();
     });
     std::cout << "byte arrays initialized" << std::endl;
 
@@ -133,7 +133,7 @@ ScannerResults Manager::scanFile(const std::string &filename)
 
     do
     {
-        if (fseek(file, SEEK_SET, counter*chunkSize) != 0)
+        if (fseek(file, counter*chunkSize, SEEK_SET) != 0)
         {
             destroyAndExit(std::string("SEAK ERROR on teration No.") + std::to_string(counter));
             return resultsCollector;
@@ -164,38 +164,9 @@ ScannerResults Manager::scanFile(const std::string &filename)
 
 void Manager::setChunkSize(uint64_t sizeInBytes)
 {
+    std::cout << "Set chunk size to " << sizeInBytes << " bytes" << std::endl;
     chunkSize = sizeInBytes;
-    readSize = chunkSize + m_byteSequences[0].bytes.size() - 1;
-    std::cout << "Chunk size will be " << chunkSize << " bytes" << std::endl;
-}
-
-void Manager::updateSequencesFromFile(const std::string &filename)
-{
-    m_byteSequences.clear();
-
-    std::cout << "updating byte sequences from file: " << filename << std::endl;
-
-    std::ifstream ifs(filename);
-    while (ifs)
-    {
-        std::string line;
-        if (!getline(ifs, line))
-        {
-            break;
-        }
-
-        size_t index = line.find(".{");
-        if (index > 0 && line.back() == '}')
-        {
-            line.pop_back();
-            Guid guid = line.substr(index + 2);
-            Bytes bytes = line.erase(index);
-            m_byteSequences.push_back({bytes, guid});
-        }
-    }
-
-    assert(m_byteSequences.size() > 0);
-    std::cout << "number of byte sequences = " << m_byteSequences.size() << std::endl;
+    readSize = chunkSize + m_byteSequences[0].size() - 1;
 }
 
 ScannerResults Manager::scanMemoryBlock(MemoryBlock memoryBlock)

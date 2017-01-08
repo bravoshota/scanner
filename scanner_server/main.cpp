@@ -2,6 +2,36 @@
 #include <QCoreApplication>
 #include <QtDBus/QtDBus>
 #include <iostream>
+#include <fstream>
+
+void updateSequencesFromFile(const std::string &filename,
+                             std::vector<ByteSequence> &byteSequences)
+{
+    byteSequences.clear();
+
+    std::cout << "updating byte sequences from file: " << filename << std::endl;
+
+    std::ifstream ifs(filename);
+    while (ifs)
+    {
+        std::string line;
+        if (!getline(ifs, line))
+        {
+            break;
+        }
+
+        size_t index = line.find(".{");
+        if (index > 0 && index != std::string::npos && line.back() == '}')
+        {
+            line.pop_back();
+            Guid guid = line.substr(index + 2);
+            Bytes bytes = line.erase(index);
+            byteSequences.push_back({bytes, guid});
+        }
+    }
+
+    std::cout << "number of byte sequences = " << byteSequences.size() << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +51,21 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Manager scannerManager(argv[1]);
+    if(!QFile(argv[1]).exists())
+    {
+        std::cout << "File doesn't exist!" << std::endl;
+        return 1;
+    }
+
+    std::vector<ByteSequence> byteSequences;
+    updateSequencesFromFile(argv[1], byteSequences);
+    if (byteSequences.empty())
+    {
+        std::cout << "Empty sequences or not supported file!" << std::endl;
+        return 1;
+    }
+
+    Manager scannerManager(std::move(byteSequences));
     ManagerDBusInterface wrapper(scannerManager);
     if (QDBusConnection::sessionBus().registerObject(DBUS_PATH, &wrapper,
                                                      QDBusConnection::ExportAllSlots))

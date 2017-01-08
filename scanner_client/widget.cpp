@@ -43,7 +43,7 @@ ScannerMain::ScannerMain(QWidget *parent)
     // setup list view for results
     ui->listResults->setModel(resultListModel);
 
-    // setip dbus
+    // setup dbus
     if(!QDBusConnection::sessionBus().isConnected())
     {
         return;
@@ -122,26 +122,18 @@ void ScannerMain::scanRecursivelly(const QString &root)
 
 void ScannerMain::asyncScanFile()
 {
-    QDBusPendingCall reply = scannerIface->asyncCall("scanFile", allFiles[replyCounter]);
-    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply);
-    if (watcher->isFinished())
-    {
-        scanFileFinished(watcher);
-    }
-    else
-    {
-        connect(watcher,
-                SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(scanFileFinished(QDBusPendingCallWatcher*)));
-    }
+    auto reply = scannerIface->asyncCall("scanFile", allFiles[replyCounter]);
+    connect(new QDBusPendingCallWatcher(reply),
+            SIGNAL(finished(QDBusPendingCallWatcher*)),
+            SLOT(scanFileFinished(QDBusPendingCallWatcher*)));
 }
 
-void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *reply)
+void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *watcher)
 {
-    if (reply->isError())
+    if (watcher->isError())
     {
         filesOutput.push_back("ABORTING because of error:");
-        filesOutput.push_back(reply->error().message());
+        filesOutput.push_back(watcher->error().message());
         busy = false;
     }
     else
@@ -149,8 +141,8 @@ void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *reply)
         replyCounter ++;
         if (replyCounter > 0)
         {
-            QDBusPendingReply<ScannerResults> result = *reply;
-            ScannerResults scannerResults = result.value();
+            QDBusPendingReply<ScannerResults> error = *watcher;
+            ScannerResults scannerResults = error.value();
             QString &lastString = filesOutput[filesOutput.size() - 1];
 
             if (scannerResults.error == ResultError::SUCCESS)
@@ -212,7 +204,7 @@ void ScannerMain::scanFileFinished(QDBusPendingCallWatcher *reply)
         }
     }
 
-    reply->deleteLater();
+    watcher->deleteLater();
 
     resultListModel->setStringList(filesOutput);
     ui->listResults->scrollToBottom();
@@ -235,6 +227,12 @@ void ScannerMain::onImportFromFilePushed(bool)
 
 void ScannerMain::onScanBytes(bool)
 {
+    if (ui->textBytes->toPlainText().isEmpty())
+    {
+        QMessageBox::information(0, "", "Nothing to check - empty text edit!");
+        return;
+    }
+
     if (busy)
     {
         QMessageBox::information(0, "", "The scanner is already busy!");
@@ -242,30 +240,22 @@ void ScannerMain::onScanBytes(bool)
     }
     busy = true;
 
-    QDBusPendingCall reply = scannerIface->asyncCall("scanBytes", ui->textBytes->toPlainText().toLatin1());
-    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply);
-    if (watcher->isFinished())
-    {
-        scanBytesFinished(watcher);
-    }
-    else
-    {
-        connect(watcher,
-                SIGNAL(finished(QDBusPendingCallWatcher*)),
-                SLOT(scanBytesFinished(QDBusPendingCallWatcher*)));
-    }
+    auto reply = scannerIface->asyncCall("scanBytes", ui->textBytes->toPlainText().toLatin1());
+    connect(new QDBusPendingCallWatcher(reply),
+            SIGNAL(finished(QDBusPendingCallWatcher*)),
+            SLOT(scanBytesFinished(QDBusPendingCallWatcher*)));
 }
 
-void ScannerMain::scanBytesFinished(QDBusPendingCallWatcher *reply)
+void ScannerMain::scanBytesFinished(QDBusPendingCallWatcher *watcher)
 {
-    if (reply->isError())
+    if (watcher->isError())
     {
-        ui->labelBytes->setText(QString("Error: ") + reply->error().message());
+        ui->labelBytes->setText(QString("Error: ") + watcher->error().message());
     }
     else
     {
-        QDBusPendingReply<ScannerResults> result = *reply;
-        ScannerResults scannerResults = result.value();
+        QDBusPendingReply<ScannerResults> error = *watcher;
+        ScannerResults scannerResults = error.value();
 
         if (scannerResults.error == ResultError::SUCCESS)
         {
@@ -290,6 +280,6 @@ void ScannerMain::scanBytesFinished(QDBusPendingCallWatcher *reply)
         }
     }
 
-    reply->deleteLater();
+    watcher->deleteLater();
     busy = false;
 }

@@ -9,7 +9,7 @@ struct ByteSequence
 {
     ByteSequence(const Bytes &bytes, const Guid &guid);
 
-    uint64_t size() const;
+    uint64_t size() const { return m_bytes.size(); }
 
     /**
      * @brief find Fast scanning method in memory block.
@@ -18,13 +18,12 @@ struct ByteSequence
      */
     bool find(const void *firstByte, uint64_t remainingSize) const;
 
-    std::string bytes;
-    Guid guid;
+    const Guid &guid() { return m_guid; }
 private:
+    std::string m_bytes;
+    Guid m_guid;
     // properties for optimized comparing:
-    const uint64_t *data64bit;
     uint64_t count64bit;
-    const char *dataRemainingBytes;
     uint32_t countRemainingBytes;
     bool found;
 };

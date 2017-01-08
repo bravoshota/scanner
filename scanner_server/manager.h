@@ -7,7 +7,7 @@
 class Manager
 {
 public:
-    Manager(const std::string &sequencesFile);
+    Manager(std::vector<ByteSequence> &&byteSequences);
 
     /**
      * @brief scanBytes scans bytes into memory block.
@@ -25,13 +25,6 @@ public:
     void setChunkSize(uint64_t sizeInBytes);
 
 protected:
-    /**
-     * @brief updateSequencesFromFile reads sequences data from file.
-     * @param filename is received by scanner server proccess
-     * through cmd parameter (e.g. in bash: "scanner somesequencesfile.txt")
-     */
-    void updateSequencesFromFile(const std::string &filename);
-
     /**
      * @brief scanMemoryBlock base function for both scanBytes and scanFile.
      * This method invokes threads using scanner pool (@see m_scannersPool).
